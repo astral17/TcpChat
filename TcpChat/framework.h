@@ -5,13 +5,11 @@
 #pragma once
 
 #include "targetver.h"
-#define WIN32_LEAN_AND_MEAN             // Исключите редко используемые компоненты из заголовков Windows
+#define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 // Файлы заголовков Windows
 #pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "iphlpapi.lib")
 #include <WinSock2.h>
-#include <iphlpapi.h>
 #include <windows.h>
 // Файлы заголовков среды выполнения C
 #include <stdlib.h>
@@ -19,3 +17,4 @@
 #include <memory.h>
 #include <tchar.h>
 #include <vector>
+#include <string>

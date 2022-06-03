@@ -143,9 +143,13 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TcpChat.h" />
+    <ClInclude Include="tcp_server.h" />
+    <ClInclude Include="tcp_socket.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="TcpChat.cpp" />
+    <ClCompile Include="tcp_server.cpp" />
+    <ClCompile Include="tcp_socket.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="TcpChat.rc" />
