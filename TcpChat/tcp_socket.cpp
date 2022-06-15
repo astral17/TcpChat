@@ -2,17 +2,17 @@
 #include <assert.h>
 
 WSAData WsaHolder::data_;
-int WsaHolder::counter = 0;
+int WsaHolder::counter_ = 0;
 
 WsaHolder::WsaHolder()
 {
-	if (!counter++)
+	if (!counter_++)
 		assert(!WSAStartup(MAKEWORD(2, 2), &data_));
 }
 
 WsaHolder::~WsaHolder()
 {
-	if (!--counter)
+	if (!--counter_)
 		WSACleanup();
 }
 
@@ -21,21 +21,20 @@ WSAData WsaHolder::data() const
 	return data_;
 }
 
-WsaHolder TcpSocket::wsa;
+WsaHolder TcpSocket::wsa_;
 
-TcpSocket::TcpSocket()
+TcpSocket::TcpSocket(bool init) : socket_(INVALID_SOCKET)
 {
-	socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (init)
+		socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+}
+
+TcpSocket::TcpSocket(const TcpSocket& other) : socket_(other.socket_)
+{
 }
 
 TcpSocket::TcpSocket(SOCKET socket) : socket_(socket)
 {
-}
-
-TcpSocket::~TcpSocket()
-{
-	if (socket_ != INVALID_SOCKET)
-		closesocket(socket_);
 }
 
 bool TcpSocket::Bind(const std::string& address, int port)
@@ -70,6 +69,11 @@ bool TcpSocket::Connect(const std::string& address, int port)
 	return !connect(socket_, (sockaddr*)&server, sizeof(server));
 }
 
+bool TcpSocket::Close()
+{
+	return socket_ != INVALID_SOCKET && !closesocket(socket_);
+}
+
 void TcpSocket::Send(const char* buf, int len, int flags)
 {
 	send(socket_, buf, len, flags);
@@ -88,4 +92,48 @@ bool TcpSocket::IsValid() const
 SOCKET TcpSocket::RawSocket() const
 {
 	return socket_;
+}
+
+AsyncSocketHandler::AsyncSocketHandler(HWND hWnd, UINT message) : hWnd_(hWnd), message_(message)
+{
+}
+
+void AsyncSocketHandler::Register(const TcpSocket& socket, long events)
+{
+	WSAAsyncSelect(socket.RawSocket(), hWnd_, message_, events);
+}
+
+void AsyncSocketHandler::OnEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	if (hWnd == hWnd_ && message == message_)
+	{
+        if (WSAGETSELECTERROR(lParam))
+        {
+            closesocket((SOCKET)wParam);
+            return;
+        }
+
+        switch (WSAGETSELECTEVENT(lParam))
+        {
+        case FD_ACCEPT:
+        {
+            SOCKET accept_socket = accept(wParam, NULL, NULL);
+			Register(accept_socket, FD_READ | FD_CLOSE);
+			if (on_accept)
+				on_accept(accept_socket);
+        }
+        break;
+        case FD_READ:
+        {
+			if (on_message)
+				on_message(wParam);
+        }
+        break;
+        case FD_CLOSE:
+			if (on_close)
+				on_close(wParam);
+            closesocket((SOCKET)wParam);
+            break;
+        }
+	}
 }
