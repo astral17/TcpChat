@@ -1,6 +1,7 @@
 #pragma once
-#include "framework.h"
 #include <functional>
+#include "framework.h"
+#include "events.h"
 
 class WsaHolder
 {
@@ -29,6 +30,10 @@ public:
 	int Receive(char* buf, int len, int flags = 0);
 	bool IsValid() const;
 	SOCKET RawSocket() const;
+
+	bool operator==(const TcpSocket& other) const;
+	bool operator!=(const TcpSocket& other) const;
+	bool operator<(const TcpSocket& other) const;
 };
 
 class AsyncSocketHandler
@@ -36,9 +41,9 @@ class AsyncSocketHandler
 	HWND hWnd_;
 	UINT message_;
 public:
-	std::function<void(TcpSocket)> on_accept;
-	std::function<void(TcpSocket)> on_message;
-	std::function<void(TcpSocket)> on_close;
+	Event<TcpSocket> accepted;
+	Event<TcpSocket> received;
+	Event<TcpSocket> closed;
 	AsyncSocketHandler(HWND hWnd, UINT message);
 	void Register(const TcpSocket& socket, long events);
 	void OnEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);

@@ -94,6 +94,21 @@ SOCKET TcpSocket::RawSocket() const
 	return socket_;
 }
 
+bool TcpSocket::operator==(const TcpSocket& other) const
+{
+	return socket_ == other.socket_;
+}
+
+bool TcpSocket::operator!=(const TcpSocket& other) const
+{
+	return socket_ != other.socket_;
+}
+
+bool TcpSocket::operator<(const TcpSocket& other) const
+{
+	return socket_ < other.socket_;
+}
+
 AsyncSocketHandler::AsyncSocketHandler(HWND hWnd, UINT message) : hWnd_(hWnd), message_(message)
 {
 }
@@ -119,19 +134,16 @@ void AsyncSocketHandler::OnEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
         {
             SOCKET accept_socket = accept(wParam, NULL, NULL);
 			Register(accept_socket, FD_READ | FD_CLOSE);
-			if (on_accept)
-				on_accept(accept_socket);
+			accepted.Raise(accept_socket);
         }
         break;
         case FD_READ:
         {
-			if (on_message)
-				on_message(wParam);
+			received.Raise(wParam);
         }
         break;
         case FD_CLOSE:
-			if (on_close)
-				on_close(wParam);
+			closed.Raise(wParam);
             closesocket((SOCKET)wParam);
             break;
         }
