@@ -139,15 +139,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="events.h" />
+    <ClInclude Include="tcp.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="TcpChat.h" />
+    <ClInclude Include="tcp_client.h" />
     <ClInclude Include="tcp_server.h" />
     <ClInclude Include="tcp_socket.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="tcp.cpp" />
     <ClCompile Include="TcpChat.cpp" />
+    <ClCompile Include="tcp_client.cpp" />
     <ClCompile Include="tcp_server.cpp" />
     <ClCompile Include="tcp_socket.cpp" />
   </ItemGroup>
