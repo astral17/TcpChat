@@ -25,9 +25,11 @@ class EventHandler
 	CallbackType callback_;
 	
 public:
+	EventHandler();
+	EventHandler(const CallbackType& callback);
+	~EventHandler();
 	void BindEvent(EventType& e);
 	void BindCallback(const CallbackType& callback);
-	~EventHandler();
 	void Call(Args... args) const;
 };
 
@@ -50,6 +52,16 @@ inline void Event<Args...>::Raise(Args... args) const
 	// TODO: self unsub in notify cause invalid iterator error
 	for (auto sub : subs)
 		sub->Call(args...);
+}
+
+template<typename... Args>
+inline EventHandler<Args...>::EventHandler()
+{
+}
+
+template<typename... Args>
+inline EventHandler<Args...>::EventHandler(const CallbackType& callback) : callback_(callback)
+{
 }
 
 template<typename... Args>

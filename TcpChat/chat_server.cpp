@@ -19,23 +19,29 @@ void ChatServer::Bind(AsyncSocketHandler& handler)
 
 void ChatServer::Broadcast(const char* buf, int len)
 {
+	AppendText((TCHAR*)buf);
 	for (auto& client : clients_)
 		client.second.Send(buf, len);
 }
 
 void ChatServer::AcceptedHandler(TcpSocket socket)
 {
-	int id = clients_.rbegin()->first + 1;
+	int id = clients_.empty() ? 0 : clients_.rbegin()->first + 1;
 	clients_[id] = socket;
 	clients_ids_[socket] = id;
+	AppendText(TEXT("Client has joined."));
 }
 
 void ChatServer::ReceivedHandler(TcpSocket socket)
 {
+	TCHAR buffer[1024];
+	int size = socket.Receive((char*)buffer, sizeof(buffer), 0);
+	Broadcast((char*)buffer, size);
 }
 
 void ChatServer::ClosedHandler(TcpSocket socket)
 {
 	clients_.erase(clients_ids_[socket]);
 	clients_ids_.erase(socket);
+	AppendText(TEXT("Client has left."));
 }

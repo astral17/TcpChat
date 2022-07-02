@@ -22,9 +22,13 @@ void ChatClient::AcceptedHandler(TcpSocket socket)
 
 void ChatClient::ReceivedHandler(TcpSocket socket)
 {
+	TCHAR buffer[1024];
+	socket.Receive((char*)buffer, sizeof(buffer), 0);
+	AppendText(buffer);
 }
 
 void ChatClient::ClosedHandler(TcpSocket socket)
 {
 	socket.Close();
+	AppendText(TEXT("Disconnected."));
 }

@@ -122,11 +122,11 @@ void AsyncSocketHandler::OnEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 {
 	if (hWnd == hWnd_ && message == message_)
 	{
-        if (WSAGETSELECTERROR(lParam))
-        {
-            closesocket((SOCKET)wParam);
-            return;
-        }
+        //if (WSAGETSELECTERROR(lParam))
+        //{
+        //    closesocket((SOCKET)wParam);
+        //    return;
+        //}
 
         switch (WSAGETSELECTEVENT(lParam))
         {

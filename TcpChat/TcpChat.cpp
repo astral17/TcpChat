@@ -1,8 +1,8 @@
-﻿// TcpChat.cpp : Определяет точку входа для приложения.
-//
-
+﻿#include "TcpChat.h"
+#include <memory>
 #include "framework.h"
-#include "TcpChat.h"
+#include "chat_client.h"
+#include "chat_server.h"
 
 #define MAX_LOADSTRING 100
 #define WM_SOCKET WM_USER + 1
@@ -120,77 +120,6 @@ void AddLog(const TCHAR* text)
     InvalidateRect(hList, NULL, TRUE);
 }
 
-std::vector<SOCKET> clients;
-void CreateServer(HWND hWnd)
-{
-    char buffer[128];
-    unsigned short port = 5002;
-
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-
-    SOCKET listen_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP); // TCP socket
-    sockaddr_in local;
-    local.sin_family = AF_INET;
-    local.sin_addr.s_addr = INADDR_ANY;
-    local.sin_port = htons(port);
-
-    bind(listen_socket, (sockaddr*)&local, sizeof(local));
-    WSAAsyncSelect(listen_socket, hWnd, WM_SOCKET, FD_ACCEPT | FD_CLOSE);
-    listen(listen_socket, SOMAXCONN);
-    AddLog(TEXT("Server created"));
-}
-
-void SendToClients(void* text, size_t size)
-{
-    for (SOCKET& client : clients)
-        send(client, (char*)text, size, 0);
-}
-
-SOCKET conn_socket;
-void ConnectServer(HWND hWnd)
-{
-    const char* server_name = "127.0.0.1";
-    char buffer[128];
-    unsigned short port = 5002;
-    WSADATA wsaData;
-
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-
-    //fgets(server_name, sizeof(server_name), stdin);
-
-    ULONG addr = inet_addr(server_name);
-    HOSTENT* host = addr != INADDR_NONE
-        ? gethostbyaddr((char*)&addr, sizeof(ULONG), AF_INET)
-        : gethostbyname(server_name);
-
-    // Create a socket
-    conn_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (conn_socket == INVALID_SOCKET)
-    {
-        AddLog(TEXT("Client: Error Opening socket: Error!"));
-        WSACleanup();
-        return;
-    }
-
-    // Copy into the sockaddr_in structure
-    SOCKADDR_IN server;
-    memset(&server, 0, sizeof(server));
-    server.sin_addr.s_addr = *(ULONG*)host->h_addr_list[0];
-    server.sin_family = host->h_addrtype;
-    server.sin_port = htons(port);
-
-    AddLog(TEXT("connecting 127.0.0.1:5002..."));
-    if (connect(conn_socket, (sockaddr*)&server, sizeof(server)) == SOCKET_ERROR)
-    {
-        AddLog(TEXT("Connect failed"));
-        WSACleanup();
-        return;
-    }
-    WSAAsyncSelect(conn_socket, hWnd, WM_SOCKET, FD_READ | FD_CLOSE);
-    AddLog(TEXT("connected!"));
-}
-
 //
 //  ФУНКЦИЯ: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -203,10 +132,13 @@ void ConnectServer(HWND hWnd)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    static HWND hEdit, hSend;
-    constexpr int kServer = 1;
-    constexpr int kClient = 2;
-    static int server = 0;
+    static AsyncSocketHandler handler(hWnd, WM_SOCKET);
+    static EventHandler<const TCHAR*> logger([](const TCHAR* text)
+    {
+        AddLog(text);
+    });
+    static std::unique_ptr<Chat> chat;
+    static HWND hEdit;
     switch (message)
     {
     case WM_CREATE:
@@ -226,48 +158,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_SOCKET:
-        if (WSAGETSELECTERROR(lParam))
-        {
-            // Display the error and close the socket
-            closesocket((SOCKET)wParam);
-            break;
-        }
-        // Determine what event occurred on the socket
-        switch (WSAGETSELECTEVENT(lParam))
-        {
-        case FD_ACCEPT:
-            {
-                AddLog(TEXT("Accept!"));
-                // Accept an incoming connection
-                SOCKET accept_socket = accept(wParam, NULL, NULL);
-                // Prepare accepted socket for read, write, and close notification
-                WSAAsyncSelect(accept_socket, hWnd, WM_SOCKET, FD_READ | FD_CLOSE);
-                clients.push_back(accept_socket);
-            }
-            break;
-        case FD_READ:
-            {
-                // Receive data from the socket in wParam
-                //AddLog(TEXT("read!"));
-                TCHAR buffer[1024];
-                recv(wParam, (char*)buffer, sizeof(buffer), 0);
-                AddLog(buffer);
-                if (server == kServer)
-                    SendToClients(buffer, sizeof(buffer));
-            }
-            break;
-        case FD_WRITE:
-            {
-                // The socket in wParam is ready for sending data
-                AddLog(TEXT("write!"));
-            }
-            break;
-        case FD_CLOSE:
-            // The connection is now closed
-            AddLog(TEXT("close!"));
-            closesocket((SOCKET)wParam);
-            break;
-        }
+        handler.OnEvent(hWnd, message, wParam, lParam);
         break;
     case WM_COMMAND:
         {
@@ -276,19 +167,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             switch (wmId)
             {
             case IDM_CREATE:
-                if (!server)
+                if (!chat)
                 {
-                    server = kServer;
-                    CreateServer(hWnd);
+                    chat.reset(new ChatServer("127.0.0.1", 5002));
+                    chat->Bind(handler);
+                    chat->text_appended.Add(logger);
                 }
                 else
                     MessageBox(NULL, TEXT("Already created or connected!"), TEXT("Error!"), MB_OK | MB_ICONERROR);
                 break;
             case IDM_CONNECT:
-                if (!server)
+                if (!chat)
                 {
-                    server = kClient;
-                    ConnectServer(hWnd);
+                    chat.reset(new ChatClient("127.0.0.1", 5002));
+                    chat->Bind(handler);
+                    chat->text_appended.Add(logger);
+                    chat->text_appended.Raise(TEXT("Connected to server."));
                 }
                 else
                     MessageBox(NULL, TEXT("Already created or connected!"), TEXT("Error!"), MB_OK | MB_ICONERROR);
@@ -304,15 +198,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     TCHAR buffer[128];
                     GetWindowText(hEdit, buffer, 128);
                     SetWindowText(hEdit, TEXT(""));
-                    if (server == kServer)
-                    {
-                        AddLog(buffer);
-                        SendToClients(buffer, sizeof(buffer));
-                    }
-                    else if (server == kClient)
-                    {
-                        send(conn_socket, (char*)buffer, sizeof(buffer), 0);
-                    }
+                    if (chat)
+                        chat->Broadcast((char*)buffer, sizeof(buffer));
                     else
                         MessageBox(NULL, TEXT("No connection..."), TEXT("Error!"), MB_OK | MB_ICONERROR);
                 }

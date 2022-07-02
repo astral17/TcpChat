@@ -12,4 +12,10 @@ public:
 	virtual void AcceptedHandler(TcpSocket socket) = 0;
 	virtual void ReceivedHandler(TcpSocket socket) = 0;
 	virtual void ClosedHandler(TcpSocket socket) = 0;
+
+	Event<const TCHAR*> text_appended;
+	virtual void AppendText(const TCHAR* text)
+	{
+		text_appended.Raise(text);
+	}
 };
