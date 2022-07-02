@@ -1,6 +1,6 @@
-#include "tcp.h"
+#include "chat.h"
 
-void Tcp::Bind(AsyncSocketHandler& handler)
+void Chat::Bind(AsyncSocketHandler& handler)
 {
 	accepted_handler_.BindCallback([this](TcpSocket socket)
 	{

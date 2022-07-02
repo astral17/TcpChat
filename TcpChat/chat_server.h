@@ -1,13 +1,16 @@
 #pragma once
 #include <map>
 #include "tcp_socket.h"
-#include "tcp.h"
+#include "chat.h"
 
-class TcpClient : public Tcp
+class ChatServer : public Chat
 {
-	TcpSocket socket_;
+	TcpSocket listen_socket_;
+	std::map<int, TcpSocket> clients_;
+	std::map<TcpSocket, int> clients_ids_;
 public:
-	TcpClient(const std::string& address, int port);
+	ChatServer(const std::string& address, int port);
+	TcpSocket GetClient(int id);
 	virtual void Bind(AsyncSocketHandler& handler) override;
 	virtual void Broadcast(const char* buf, int len) override;
 	virtual void AcceptedHandler(TcpSocket socket) override;

@@ -1,7 +1,7 @@
 #pragma once
 #include "tcp_socket.h"
 
-class Tcp
+class Chat
 {
 	EventHandler<TcpSocket> accepted_handler_;
 	EventHandler<TcpSocket> received_handler_;
